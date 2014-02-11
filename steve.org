@@ -1,32 +1,100 @@
 #+TITLE: Personal emacs configuration for Stephen Gordon
 
+* Style
+- Nyan
+#+name: nyan-mode
+#+begin_src emacs-lisp
+(add-to-list 'load-path "~/.emacs.d/nyan-mode")
+(require 'nyan-mode)
+(nyan-mode)
+#+end_src
+
+- zoom
+#+name: zoom-levels
+#+begin_src emacs-lisp
+(global-set-key (kbd "C-+") 'text-scale-increase)
+(global-set-key (kbd "C-=") 'text-scale-increase)
+(global-set-key (kbd "C--") 'text-scale-decrease)
+#+end_src
+
+- line-numbers
+#+name: line-numbers
+#+begin_src emacs-lisp
+(global-linum-mode 1)
+#+end_src
+
+- word-wrap off
+#+name: word-wrap-off
+#+begin_src emacs-lisp
+(setq-default truncate-lines 1)
+#+end_src
+
 * Misc
-*** Basic usability and welcome message
+- line above or below
+#+name: line-above-or-below
+#+begin_src emacs-lisp
+(defun open-line-below ()
+  (interactive)
+  (end-of-line)
+  (newline)
+  (indent-for-tab-command))
+
+(defun open-line-above ()
+  (interactive)
+  (beginning-of-line)
+  (newline)
+  (forward-line -1)
+  (indent-for-tab-command))
+
+(global-set-key (kbd "<C-return>") 'open-line-below)
+(global-set-key (kbd "<C-S-return>") 'open-line-above)
+#+end_src
+
+- cleanup buffers
+#+name: cleanup-buffers
+#+begin_src emacs-lisp
+(defun cleanup-buffer-safe ()
+  "Perform a bunch of safe operations on the whitespace content of a buffer.
+Does not indent buffer, because it is used for a before-save-hook, and that
+might be bad."
+  (interactive)
+  (untabify (point-min) (point-max))
+  (delete-trailing-whitespace)
+  (set-buffer-file-coding-system 'utf-8))
+
+;; Various superfluous white-space. Just say no.
+(add-hook 'before-save-hook 'cleanup-buffer-safe)
+
+(defun cleanup-buffer ()
+  "Perform a bunch of operations on the whitespace content of a buffer.
+Including indent-buffer, which should not be called automatically on save."
+  (interactive)
+  (cleanup-buffer-safe)
+  (indent-region (point-min) (point-max)))
+
+(global-set-key (kbd "C-c n") 'cleanup-buffer)
+#+end_src
+
+- better dired defaults
+#+name: better-dired
+#+begin_src emacs-lisp
+(require 'dired-details)
+(setq-default dired-details-hidden-string "--- ")
+(dired-details-install)
+#+end_src
+
+- Basic usability and welcome message
+#+name: hide-all-ui-elements
 #+begin_src emacs-lisp
 (message "Loading Personal emacs configuration for Stephen Gordon")
-
 (if (fboundp 'menu-bar-mode) (menu-bar-mode -1))
 (if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
 (if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
-
 (setq inhibit-startup-message t)
 #+end_src
 
-*** better goto line number
-#+begin_src emacs-lisp
-(global-set-key [remap goto-line] 'goto-line-with-feedback)
-
-(defun goto-line-with-feedback ()
-  "Show line numbers temporarily, while prompting for the line number input"
-  (interactive)
-  (unwind-protect
-      (progn
-        (linum-mode 1)
-        (goto-line (read-number "Goto line: ")))
-    (linum-mode -1)))
-#+end_src
-
-*** rotate that left and right frame, or top and bottom
+- rotate that left and right frame, or top and bottom
+#+name: rotate-windows
 #+begin_src emacs-lisp
 (defun rotate-windows ()
   "Rotate your windows"
@@ -54,7 +122,8 @@
              (setq i (1+ i)))))))
 #+end_src
 
-*** switch that vertical split to horizontal or vise-a-versa 
+- switch that vertical split to horizontal or vise-a-versa
+#+name: toggle-window-split
 #+begin_src emacs-lisp
 (defun toggle-window-split ()
   (interactive)
@@ -82,10 +151,159 @@
           (if this-win-2nd (other-window 1))))))
 #+end_src
 
+- prefer backward kill word to kill region
+#+name: prefer-killword-to-killregion
+#+begin_src emacs-lisp
+(global-set-key "\C-w" 'backward-kill-word)
+(global-set-key "\C-x\C-k" 'kill-region)
+(global-set-key "\C-c\C-k" 'kill-region)
+#+end_src
+
+- bind replay macro to f5
+#+name: replay-macro
+#+begin_src emacs-lisp
+(global-set-key [f5] 'call-last-kbd-macro)
+#+end_src
+
+- better C-a
+#+name: better-C-a
+#+begin_src emacs-lisp
+(defun smarter-move-beginning-of-line (arg)
+  "Move point back to indentation of beginning of line.
+Move point to the first non-whitespace character on this line.
+If point is already there, move to the beginning of the line.
+Effectively toggle between the first non-whitespace character and
+the beginning of the line.
+If ARG is not nil or 1, move forward ARG - 1 lines first.  If
+point reaches the beginning or end of the buffer, stop there."
+  (interactive "^p")
+  (setq arg (or arg 1))
+
+  (when (/= arg 1)
+    (let ((line-move-visual nil))
+      (forward-line (1- arg))))
+
+  (let ((orig-point (point)))
+    (back-to-indentation)
+    (when (= orig-point (point))
+      (move-beginning-of-line 1))))
+
+(global-set-key [remap move-beginning-of-line]
+                'smarter-move-beginning-of-line)
+#+end_src
+
+- key chords
+#+name: key-chords
+#+begin_src emacs-lisp
+(add-to-list 'load-path "~/.emacs.d/ace-jump-mode.el")
+(autoload
+   'ace-jump-mode
+   "ace-jump-mode"
+   "Emacs quick move minor mode"
+   t)
+(define-key global-map (kbd "C-c SPC") 'ace-jump-mode)
+
+(autoload
+  'ace-jump-mode-pop-mark
+  "ace-jump-mode"
+  "Ace jump back:-)"
+  t)
+(eval-after-load "ace-jump-mode"
+  '(ace-jump-mode-enable-mark-sync))
+(define-key global-map (kbd "C-x SPC") 'ace-jump-mode-pop-mark)
+
+(require 'key-chord)
+(key-chord-define-global "jj" 'ace-jump-word-mode)
+(key-chord-define-global "jl" 'ace-jump-line-mode)
+(key-chord-define-global "jk" 'ace-jump-char-mode)
+(key-chord-define-global "ln" 'linum-mode)
+(key-chord-mode +1)
+#+end_src
+
+- colors themes ect.
+#+name: color-themes
+#+begin_src emacs-lisp
+(load-theme 'zenburn t)
+#+end_src
+
+#+name: rainbow-delimiters
+#+begin_src emacs-lisp
+(require 'rainbow-delimiters)
+(global-rainbow-delimiters-mode)
+#+end_src
+
+- disable mouse scroll
+#+name: disable-mouse-scroll
+#+begin_src emacs_lisp
+(require 'cl)
+(loop for key in (list
+  (kbd "<wheel-down>")
+  (kbd "<double-wheel-down>")
+  (kbd "<triple-wheel-down>")
+  (kbd "<wheel-up>")
+  (kbd "<double-wheel-up>")
+  (kbd "<triple-wheel-up>")
+  (kbd "S-<mouse-4>"))
+  do (global-set-key key 'ignore))
+(mouse-wheel-mode -1)
+#+end_src
+
 * Mac Specific
+- make command the meta key and option be super
+#+name: mac-rebinds
 #+begin_src emacs-lisp
 (setq mac-command-modifier 'meta)
 (setq mac-option-modifier 'super)
 #+end_src
 
+* Code
+** Scala
+- ensime
+#+name: ensime
+#+begin_src emacs-lisp
+(add-to-list 'load-path "~/.emacs.d/ensime/elisp")
+(require 'ensime)
+(setq ensime-default-server-cmd "bin/server")
+(setq ensime-graphical-tooltips nil)
+(setq ensime-tooltip-type-hints t)
+(defun make-scalaz-doc-url (type &optional member)
+  (ensime-make-scala-doc-url-helper
+    "http://docs.typelevel.org/api/scalaz/stable/7.0.3/doc" type member))
 
+(add-to-list 'ensime-doc-lookup-map '("^scalaz\\." . make-scalaz-doc-url))
+
+(defun make-scalatra-doc-url (type &optional member)
+  (ensime-make-scala-doc-url-helper
+    "http://scalatra.org/2.2/api/" type member))
+(add-to-list 'ensime-doc-lookup-map '("^org\\.scalatra\\." . make-scalatra-doc-url))
+
+(defun killall-java ()
+  (interactive)
+  (shell-command "killall java"))
+
+(global-set-key (kbd "C-c C-v K") 'killall-java)
+(add-hook 'scala-mode-hook 'ensime-scala-mode-hook)
+#+end_src
+
+** Clojure
+- setting for clojure
+#+name: clojure-mode
+#+begin_src emacs-lisp
+(require 'smartparens-config)
+(smartparens-global-mode t)
+#+end_src
+- settings for cider
+#+name: cider
+#+begin_src emacs-lisp
+(add-hook 'cider-repl-mode-hook 'smartparens-strict-mode)
+(setq nrepl-hide-special-buffers t)
+(add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
+#+end_src
+
+** Misc
+
+- projectile
+#+name: projectile-init
+#+begin_src emacs-lisp
+(projectile-global-mode)
+#+end_src

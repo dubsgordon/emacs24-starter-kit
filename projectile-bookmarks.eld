@@ -1,0 +1,1 @@
+("~/src/odin/" "~/src/scala_sourcecode/" "~/.emacs.d/" "~/src/wordnik-sbt.g8/" "~/src/social-signals/" "~/src/baldr/" "~/src/stig/" "~/src/clojure/testing/" "~/.sbt/0.13/")
